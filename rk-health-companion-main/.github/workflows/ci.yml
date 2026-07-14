@@ -1,0 +1,51 @@
+name: RK Health CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: backend/package.json
+
+    - name: Install Backend Dependencies
+      run: |
+        cd backend
+        npm ci
+
+    - name: Generate Prisma Client
+      run: |
+        cd backend
+        npx prisma generate --schema=src/prisma/schema.prisma
+
+    - name: Run Jest Testing Suite
+      run: |
+        cd backend
+        npm run test
+      env:
+        NODE_ENV: test
+        PORT: 5000
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+        JWT_SECRET: testing_jwt_secret_token_key_123456
+        JWT_EXPIRES_IN: 1h
+        GROQ_API_KEY: mock_key
+        TWILIO_ACCOUNT_SID: mock_sid
+        TWILIO_AUTH_TOKEN: mock_token
+        TWILIO_PHONE_NUMBER: mock_phone
